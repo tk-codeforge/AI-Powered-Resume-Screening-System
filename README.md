@@ -1,4 +1,4 @@
-# 🤖 AI Resume Screening System
+# 🤖 AI Powered Resume Screening System
 
 An NLP-powered resume screening and candidate ranking system built with **FastAPI**, **TF-IDF**, and **Cosine Similarity**.
 
