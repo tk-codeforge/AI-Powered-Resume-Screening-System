@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Resume Screener</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%);
+      border-bottom: 1px solid #2d3748;
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    header .logo { font-size: 1.8rem; }
+    header h1 { font-size: 1.4rem; font-weight: 700; color: #7c3aed; }
+    header p { font-size: 0.85rem; color: #94a3b8; margin-top: 0.2rem; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+    .card {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 1.8rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; color: #a78bfa; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      background: #0f1117;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      padding: 0.9rem;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: #7c3aed; }
+
+    .drop-zone {
+      border: 2px dashed #374151;
+      border-radius: 10px;
+      padding: 2.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #7c3aed; background: #1e1b4b22; }
+    .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .drop-zone .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .drop-zone p { color: #94a3b8; font-size: 0.9rem; }
+    .drop-zone .hint { font-size: 0.75rem; color: #6b7280; margin-top: 0.3rem; }
+
+    #file-list { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .file-chip {
+      background: #1e293b;
+      border: 1px solid #374151;
+      border-radius: 20px;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #cbd5e1;
+    }
+    .file-chip .remove { cursor: pointer; color: #ef4444; font-weight: bold; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.8rem 2rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px #7c3aed44; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .spinner { display: none; width: 20px; height: 20px; border: 3px solid #ffffff33; border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #results { display: none; }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 1.2rem;
+      text-align: center;
+    }
+    .stat-card .val { font-size: 2rem; font-weight: 700; color: #a78bfa; }
+    .stat-card .lbl { font-size: 0.8rem; color: #64748b; margin-top: 0.2rem; }
+
+    .resume-card {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 1.4rem;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s;
+    }
+    .resume-card:hover { border-color: #7c3aed55; }
+
+    .resume-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+    .resume-meta { flex: 1; }
+    .resume-rank { font-size: 0.75rem; color: #6b7280; margin-bottom: 0.3rem; }
+    .resume-name { font-size: 1.05rem; font-weight: 600; color: #e2e8f0; }
+    .resume-file { font-size: 0.8rem; color: #64748b; margin-top: 0.1rem; }
+    .resume-contact { font-size: 0.8rem; color: #94a3b8; margin-top: 0.3rem; }
+
+    .score-block { text-align: right; min-width: 90px; }
+    .score-num { font-size: 1.8rem; font-weight: 800; }
+    .score-label { font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block; margin-top: 0.2rem; }
+
+    .score-excellent .score-num { color: #10b981; }
+    .score-excellent .score-label { background: #10b98122; color: #10b981; }
+    .score-good .score-num { color: #3b82f6; }
+    .score-good .score-label { background: #3b82f622; color: #3b82f6; }
+    .score-partial .score-num { color: #f59e0b; }
+    .score-partial .score-label { background: #f59e0b22; color: #f59e0b; }
+    .score-low .score-num { color: #ef4444; }
+    .score-low .score-label { background: #ef444422; color: #ef4444; }
+
+    .progress-bar { height: 6px; background: #1e293b; border-radius: 3px; margin: 1rem 0 0.8rem; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+
+    .keywords-section { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-top: 0.8rem; }
+    .kw-group label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; display: block; margin-bottom: 0.4rem; }
+    .kw-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .kw-tag {
+      font-size: 0.73rem;
+      padding: 0.15rem 0.55rem;
+      border-radius: 12px;
+    }
+    .kw-match { background: #10b98120; color: #34d399; border: 1px solid #10b98133; }
+    .kw-miss { background: #ef444420; color: #f87171; border: 1px solid #ef444433; }
+
+    .error-box { background: #1e1b1b; border: 1px solid #7f1d1d; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; color: #fca5a5; font-size: 0.9rem; }
+
+    @media (max-width: 600px) {
+      .keywords-section { grid-template-columns: 1fr; }
+      .resume-header { flex-direction: column; }
+      .score-block { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🤖</div>
+  <div>
+    <h1>AI Resume Screening System</h1>
+    <p>NLP-powered candidate ranking · TF-IDF + Cosine Similarity</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <h2>📋 Job Description</h2>
+    <textarea id="jd" placeholder="Paste the full job description here...&#10;&#10;Example: We are looking for a Senior Python Developer with experience in FastAPI, machine learning, PostgreSQL, Docker, and AWS..."></textarea>
+  </div>
+
+  <div class="card">
+    <h2>📄 Upload Resumes</h2>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" multiple accept=".pdf,.docx,.doc,.txt" />
+      <div class="icon">📂</div>
+      <p>Drag & drop resumes here, or click to browse</p>
+      <div class="hint">Supports PDF, DOCX, DOC, TXT · Upload multiple files at once</div>
+    </div>
+    <div id="file-list"></div>
+  </div>
+
+  <div style="text-align:center; margin: 1.5rem 0;">
+    <button class="btn btn-primary" id="screen-btn" onclick="screenResumes()">
+      <span class="spinner" id="spinner"></span>
+      <span id="btn-text">🚀 Screen Resumes</span>
+    </button>
+  </div>
+
+  <div id="results">
+    <div class="stats-row" id="stats-row"></div>
+    <div id="error-container"></div>
+    <div id="results-list"></div>
+  </div>
+
+</div>
+
+<script>
+  let selectedFiles = [];
+
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    addFiles(Array.from(e.dataTransfer.files));
+  });
+  fileInput.addEventListener('change', () => addFiles(Array.from(fileInput.files)));
+
+  function addFiles(files) {
+    files.forEach(f => {
+      if (!selectedFiles.find(x => x.name === f.name)) selectedFiles.push(f);
+    });
+    renderFileList();
+  }
+
+  function removeFile(name) {
+    selectedFiles = selectedFiles.filter(f => f.name !== name);
+    renderFileList();
+  }
+
+  function renderFileList() {
+    const list = document.getElementById('file-list');
+    list.innerHTML = selectedFiles.map(f => `
+      <div class="file-chip">
+        📄 ${f.name} <span class="remove" onclick="removeFile('${f.name}')">✕</span>
+      </div>
+    `).join('');
+  }
+
+  function scoreClass(label) {
+    if (label === 'Excellent Match') return 'score-excellent';
+    if (label === 'Good Match') return 'score-good';
+    if (label === 'Partial Match') return 'score-partial';
+    return 'score-low';
+  }
+
+  function progressColor(score) {
+    if (score >= 75) return '#10b981';
+    if (score >= 55) return '#3b82f6';
+    if (score >= 35) return '#f59e0b';
+    return '#ef4444';
+  }
+
+  async function screenResumes() {
+    const jd = document.getElementById('jd').value.trim();
+    if (!jd) { alert('Please enter a job description.'); return; }
+    if (selectedFiles.length === 0) { alert('Please upload at least one resume.'); return; }
+
+    const btn = document.getElementById('screen-btn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btn-text');
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Analyzing...';
+
+    const formData = new FormData();
+    formData.append('job_description', jd);
+    selectedFiles.forEach(f => formData.append('resumes', f));
+
+    try {
+      const res = await fetch('/api/screen', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || 'Server error');
+      }
+
+      renderResults(data);
+    } catch (err) {
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('results-list').innerHTML = `<div class="error-box">❌ Error: ${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = '🚀 Screen Resumes';
+    }
+  }
+
+  function renderResults(data) {
+    document.getElementById('results').style.display = 'block';
+
+    const avg = data.results.length ? (data.results.reduce((s, r) => s + r.score, 0) / data.results.length).toFixed(1) : 0;
+    const top = data.results[0]?.score?.toFixed(1) ?? 0;
+    const excellent = data.results.filter(r => r.score >= 75).length;
+
+    document.getElementById('stats-row').innerHTML = `
+      <div class="stat-card"><div class="val">${data.total_resumes}</div><div class="lbl">Resumes Screened</div></div>
+      <div class="stat-card"><div class="val">${top}%</div><div class="lbl">Top Score</div></div>
+      <div class="stat-card"><div class="val">${avg}%</div><div class="lbl">Average Score</div></div>
+      <div class="stat-card"><div class="val">${excellent}</div><div class="lbl">Excellent Matches</div></div>
+    `;
+
+    const errContainer = document.getElementById('error-container');
+    errContainer.innerHTML = data.errors.map(e =>
+      `<div class="error-box">⚠️ Could not parse <strong>${e.filename}</strong>: ${e.error}</div>`
+    ).join('');
+
+    document.getElementById('results-list').innerHTML = data.results.map(r => `
+      <div class="resume-card">
+        <div class="resume-header">
+          <div class="resume-meta">
+            <div class="resume-rank">Rank #${r.rank}</div>
+            <div class="resume-name">👤 ${r.candidate_name}</div>
+            <div class="resume-file">📄 ${r.filename} · ${r.word_count} words</div>
+            ${r.email || r.phone ? `<div class="resume-contact">${r.email ? '✉️ ' + r.email : ''} ${r.phone ? '📞 ' + r.phone : ''}</div>` : ''}
+          </div>
+          <div class="score-block ${scoreClass(r.score_label)}">
+            <div class="score-num">${r.score}%</div>
+            <div class="score-label">${r.score_label}</div>
+          </div>
+        </div>
+
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${r.score}%; background: ${progressColor(r.score)}"></div>
+        </div>
+
+        <div style="font-size: 0.78rem; color: #64748b;">Keyword Match Rate: <strong style="color:#94a3b8">${r.keyword_match_rate}%</strong></div>
+
+        <div class="keywords-section">
+          <div class="kw-group">
+            <label>✅ Matched Keywords</label>
+            <div class="kw-tags">
+              ${r.matched_keywords.length ? r.matched_keywords.map(k => `<span class="kw-tag kw-match">${k}</span>`).join('') : '<span style="color:#4b5563;font-size:0.78rem">None found</span>'}
+            </div>
+          </div>
+          <div class="kw-group">
+            <label>❌ Missing Keywords</label>
+            <div class="kw-tags">
+              ${r.missing_keywords.length ? r.missing_keywords.map(k => `<span class="kw-tag kw-miss">${k}</span>`).join('') : '<span style="color:#4b5563;font-size:0.78rem">None missing</span>'}
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+</script>
+</body>
+</html>
